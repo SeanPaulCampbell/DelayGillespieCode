@@ -26,7 +26,7 @@ def gillespie(reactions_list, stop_time, initial_state_vector):
         current_time = next_event_time
         next_reaction = choose_reaction(cumulative_propensities, reactions_list)
         processing_time = next_reaction.distribution()
-        if processing_time == 1: # for the love of god, someone check this for me, all the other versions of code have ==0, DMI 11/16/2020
+        if processing_time == 0: #  Do not change this 0 to a 1  SPC 22Nov2020
             state_vector = state_vector + next_reaction.change_vec
             time_series = update_time_series(time_series, current_time, state_vector)
         else:
