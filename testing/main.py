@@ -39,10 +39,13 @@ def Initialize_Classes(gillespie_parameters):
 
     reaction_list = np.array([production, enzymatic_degradation, dilution])
     return reaction_list
+# Get parallel list running
+# RUN FOR LOOP MATH MACHINE
+
+# MAKE FILE THAT  makes code into compiled form compile.py
 
 
-
-#Note: keep function defitions above mp.Pool the 2 shall never mix
+#Note: keep function defitions above mp.Pool the 2 shall never mix. Function definitions are like an oil spill on top of water
 with mp.Pool(safeProcessors) as pool2:
     alpha = [300]
     beta = [.1]
@@ -55,9 +58,12 @@ with mp.Pool(safeProcessors) as pool2:
     stop_time = 500
     burn_time = 50
     sample_rate = 10
-    path = "C/"
+    path = "Jan/"
     Path(path).mkdir(parents=True, exist_ok=True)
-    parameter_sets = Gill.list_for_parallelization([alpha, beta, gamma_r, R0, C0, mu, cv, [[0]]])
+
+    #parameter_sets = Gill.list_for_parallelization([alpha, beta, gamma_r, R0, C0, mu, cv, [[0]]])
+    parameter_sets = Gill.list_for_parallelization([alpha,[.05,.2],gamma_r, R0,C0, [5,10],[.05,.5],[[0]]])
+
 
     try:
         pool2.starmap(run_pipeline,
