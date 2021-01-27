@@ -62,12 +62,12 @@ with mp.Pool(safeProcessors) as pool2:
     path = "Jan/"
     Path(path).mkdir(parents=True, exist_ok=True)
 
-    initial_state_represilator = np.array([0,50,200], dtype=int)
-    parameter_sets_represilator = Gill.list_for_parallelization([alpha, beta, gamma_r, R0, C0, mu, cv, [initial_state]])
+    initial_state = np.array([0,50,200], dtype=int)
+    parameter_sets = Gill.list_for_parallelization([alpha, beta, gamma_r, R0, C0, mu, cv, [initial_state]])
     
     try:
         pool2.starmap(run_pipeline, [(parameter_set, [stop_time, burn_time, sample_rate], path) 
-                                     for parameter_set in parameter_sets_represilator])
+                                     for parameter_set in parameter_sets])
     finally:
         pool2.close()
         pool2.join()
