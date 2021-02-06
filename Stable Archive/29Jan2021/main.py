@@ -87,7 +87,7 @@ onlyPeakfiles = [f for f in listdir(path_to_raw_data) if isfile(join(path_to_raw
 onlyPeakfiles = [f for f in onlyPeakfiles if "peaks.csv" in f]
 for peakfile in onlyPeakfiles:
     peaks = np.array(pd.read_csv(path_to_raw_data + peakfile, header=None))
-    params = np.array(peakfile[1:-10].split(', ')[-3:-1], dtype=float)
+    params = np.array(peakfile[1:-10].split(', ')[-5:-3], dtype=float)
     indices = (np.where(mu == params[0])[0][0], np.where(cv == params[1])[0][0])
 
     period_mean[indices] = np.mean(peaks[:, 0])
