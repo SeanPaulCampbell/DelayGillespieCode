@@ -11,8 +11,7 @@ def gillespie(reactions_list, stop_time, initial_state_vector):
     [state_vector, current_time, service_queue, time_series] = initialize(initial_state_vector)
     max_buffer = 220
     iterator = 0
-    with open("memoryUsage.log", "a") as log:
-        print("Total, available, used, free virtual memory, active, inactive ", file=log)
+    
     while current_time < stop_time:
         buffer = pd.DataFrame(columns=["time", "state"])
         if iterator == 0:
@@ -35,9 +34,7 @@ def gillespie(reactions_list, stop_time, initial_state_vector):
                 add_reaction(service_queue, current_time + processing_time, next_reaction)
             if len(buffer) > 0:
                 iterator = len(buffer)
-        if np.random.uniform() > .97:
-            with open("memoryUsage.log", "a") as log:
-                print(str(time()) + " " + str(psutil.virtual_memory()), file=log)
+        
         time_series = time_series.append(buffer, ignore_index=True)
     return dataframe_to_numpyarray(time_series)
 

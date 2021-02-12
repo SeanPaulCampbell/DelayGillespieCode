@@ -9,29 +9,26 @@ from os.path import isfile, join, getsize
 from pathlib import Path
 import psutil
 import multiprocessing as mp
-safeProcessors = max(1, int(mp.cpu_count() * .8))
+safeProcessors = max(1, int(mp.cpu_count() * .5))
 
 
 # Function Definitions
 def run_pipeline(gillespie_parameters, run_vector, path):
-    try:
-        reaction_list = Initialize_Classes(gillespie_parameters[:-1])
-        initial_state = gillespie_parameters[-1]
-        [stop_time, burn_in_time, sample_rate] = run_vector
 
-        signal = Gill.gillespie(reaction_list, stop_time, initial_state)
-        signalcsv = path + '{}signal.csv'.format(gillespie_parameters)
-        np.savetxt(signalcsv, gillespie_parameters[:7], delimiter=",")  # maybe make this a header
-        np.savetxt(signalcsv, signal, delimiter=",")
-        signal = Post.burn_in_time_series(signal[:, :2], burn_in_time)  # this needs to be passed by reference.
-        signal = Post.uniformly_sample(signal, sample_rate)
+    reaction_list = Initialize_Classes(gillespie_parameters[:-1])
+    initial_state = gillespie_parameters[-1]
+    [stop_time, burn_in_time, sample_rate] = run_vector
 
-        peakscsv = path + "{}peaks.csv".format(gillespie_parameters)
-        Post.chop_peaks(signal, peakscsv, 4000)
-    except:
-        print("Total, available, used, free virtual memory, active, inactive ", file=path + 'error.log')
-        print("error" + str(gillespie_parameters) + " psutil memory " + str(psutil.virtual_memory()),
-              file=path + 'error.log')
+    signal = Gill.gillespie(reaction_list, stop_time, initial_state)
+    signalcsv = path + '{}signal.csv'.format(gillespie_parameters)
+    np.savetxt(signalcsv, gillespie_parameters[:7], delimiter=",")  # maybe make this a header
+    np.savetxt(signalcsv, signal, delimiter=",")
+    signal = Post.burn_in_time_series(signal[:, :2], burn_in_time)  # this needs to be passed by reference.
+    signal = Post.uniformly_sample(signal, sample_rate)
+
+    peakscsv = path + "{}peaks.csv".format(gillespie_parameters)
+    Post.chop_peaks(signal, peakscsv, 4000)
+        
 
 
 def Initialize_Classes(gillespie_parameters):
@@ -41,9 +38,9 @@ def Initialize_Classes(gillespie_parameters):
     dilution1 = Classy.Reaction(np.array([0, -1, 0], dtype=int), 1, 'mobius_propensity', [0, beta, 1, 0], 1, [0])
     dilution2 = Classy.Reaction(np.array([0, 0, -1], dtype=int), 2, 'mobius_propensity', [0, beta, 1, 0], 1, [0])
 
-    degradation0 = Classy.Reaction(np.array([-1, 0, 0], dtype=int), 0, 'mobius_propensity', [0, yr, r0, 1], 1, [0])
-    degradation1 = Classy.Reaction(np.array([0, -1, 0], dtype=int), 1, 'mobius_propensity', [0, yr, r0, 1], 1, [0])
-    degradation2 = Classy.Reaction(np.array([0, 0, -1], dtype=int), 2, 'mobius_propensity', [0, yr, r0, 1], 1, [0])
+    degradation0 = Classy.Reaction(np.array([-1, 0, 0], dtype=int), 0, 'mobius_sum_propensity', [0, yr, r0, 1], 1, [0])
+    degradation1 = Classy.Reaction(np.array([0, -1, 0], dtype=int), 1, 'mobius_sum_propensity', [0, yr, r0, 1], 1, [0])
+    degradation2 = Classy.Reaction(np.array([0, 0, -1], dtype=int), 2, 'mobius_sum_propensity', [0, yr, r0, 1], 1, [0])
 
     production1 = Classy.Reaction(np.array([0, 1, 0], dtype=int), 0, 'decreasing_hill_propensity', [alpha, c0, 2], 0,
                                   [mu, mu * cv])
@@ -65,13 +62,13 @@ with mp.Pool(safeProcessors) as pool2:
     gamma_r = [150]
     R0 = [1]
     C0 = [10]
-    mu = list(np.linspace(5, 10, 16))
-    cv = list(np.linspace(0, .5, 16))
+    mu = [5]#list(np.linspace(5, 10, 16))
+    cv = [.1]#list(np.linspace(0, .5, 16))
     
-    stop_time = 8300
+    stop_time = 2300
     burn_time = 300
     sample_rate = 10
-    path_to_raw_data = "7Feb2021/"
+    path_to_raw_data = "data_2021Feb12/"
     Path(path_to_raw_data).mkdir(parents=True, exist_ok=True)
     
     initial_vector = np.array([0, 500, 1000], dtype=int)
@@ -92,24 +89,3 @@ with mp.Pool(safeProcessors) as pool2:
         pool2.close()
         pool2.join()
 
-period_mean = np.zeros([len(mu), len(cv)])
-period_cv = np.zeros([len(mu), len(cv)])
-amplitude_mean = np.zeros([len(mu), len(cv)])
-amplitude_cv = np.zeros([len(mu), len(cv)])
-
-onlyPeakfiles = [f for f in listdir(path_to_raw_data) if isfile(join(path_to_raw_data, f))]
-onlyPeakfiles = [f for f in onlyPeakfiles if "peaks.csv" in f]
-for peakfile in onlyPeakfiles:
-    peaks = np.array(pd.read_csv(path_to_raw_data + peakfile, header=None))
-    params = np.array(peakfile[1:-10].split(', ')[-5:-3], dtype=float)
-    indices = (np.where(mu == params[0])[0][0], np.where(cv == params[1])[0][0])
-
-    period_mean[indices] = np.mean(peaks[:, 0])
-    period_cv[indices] = np.std(peaks[:, 0]) / period_mean[indices]
-    amplitude_mean[indices] = np.mean(peaks[:, 2])
-    amplitude_cv[indices] = np.std(peaks[:, 2]) / amplitude_mean[indices]
-
-np.savetxt(path_to_raw_data + "period_mean.csv", period_mean, delimiter=",")
-np.savetxt(path_to_raw_data + "period_cv.csv", period_cv, delimiter=",")
-np.savetxt(path_to_raw_data + "amplitude_mean.csv", amplitude_mean, delimiter=",")
-np.savetxt(path_to_raw_data + "amplitude_cv.csv", amplitude_cv, delimiter=",")
