@@ -3,6 +3,24 @@ import numpy as np
 import os
 
 
+def get_peak_files(path):
+    onlyPeakfiles = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
+    onlyPeakfiles = [f for f in onlyPeakfiles if "peaks" in f]
+    return onlyPeakfiles
+
+
+def archive_signal(signal, file_name):
+    np.save(file_name, signal)
+    os.system("gzip {} ;".format("'" + file_name + "'") +
+              " mv {} /home/spcampbe/servers/storage/data\ storage &".format("'" + file_name + ".gz'"))
+
+
+def post_process(signal, file_name, burn_in_time, sample_rate, chop_size=4000):
+    signal = burn_in_time_series(signal[:, :2], burn_in_time)
+    signal = uniformly_sample(signal, sample_rate)
+    chop_peaks(signal, file_name, chop_size)
+
+
 def burn_in_time_series(signal, burn_in_time):
     temp_signal = signal
     temp_signal[:, 0] = signal[:, 0] - burn_in_time
@@ -71,7 +89,7 @@ def detect_peaks(signal):
 
 
 def chop_peaks(signal, filename, chop_size=4000):  # Sean was supposed to write a comment
-    peak_record = np.zeros([1, min(np.shape(signal)) + 1])
+    peak_record = np.zeros([1, min(np.shape(signal))])
     for index in range(int(max(np.shape(signal)) / chop_size)):
         start = index * (chop_size + 1)
         peak_data = detect_peaks(signal[start:(start + chop_size), :])
@@ -89,9 +107,17 @@ def post_process_from_file(zipped_signal, burn_in, sample_rate, window_size=4000
     os.system("gunzip {} ;".format("'" + zipped_signal + "'"))
     signal = np.load(zipped_signal[:-3])
     os.system("gzip {} &".format("'" + zipped_signal[:-3] + "'"))
-    signal = burn_in_time_series(signal[:, :2], burn_in)  # this needs to be passed by reference.
+    signal = burn_in_time_series(signal[:, :2], burn_in)
     signal = uniformly_sample(signal, sample_rate)
 
     peakscsv = zipped_signal[:-13] + "peaks"
     chop_peaks(signal, peakscsv, window_size)
 
+
+def plot_timeseries(file):
+    from matplotlib import pyplot as plt
+    os.system("gunzip '" + file + "'")
+    signal = np.load("'" + file[:-3] + "'")
+    os.system("gzip '" + file[:-3] + "'")
+    plt.plot(signal[:, 0], signal[:, 1])
+    plt.savefig(file[:-7] + 'plot.png')
