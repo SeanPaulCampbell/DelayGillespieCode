@@ -6,7 +6,7 @@ import numpy as np
 import os
 from pathlib import Path
 import multiprocessing as mp
-safeProcessors = max(1, int(mp.cpu_count() * .8))
+safeProcessors = max(1, int(mp.cpu_count() * .5) - 1)
 
 
 # Function Definitions
