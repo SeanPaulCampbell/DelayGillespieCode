@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import numpy as np
+import os
 
 
 def burn_in_time_series(signal, burn_in_time):
@@ -69,16 +70,28 @@ def detect_peaks(signal):
     return peaks
 
 
-def chop_peaks(signal, filename, chop_size=2000):
-    with open(filename, 'w') as record_peaks:
-        for index in range(int(max(np.shape(signal))/chop_size)):
-            start = index * (chop_size + 1)
-            peak_data = detect_peaks(signal[start:(start + chop_size), :])
-            delta_time = np.diff(peak_data[:, 0])
-            full_peak_data = np.zeros([np.shape(peak_data)[0] - 1, np.shape(peak_data)[1] + 1])
-            full_peak_data[:, 0] = delta_time
-            full_peak_data[:, 1] = peak_data[1:, 0]
-            full_peak_data[:, 2:] = np.round(peak_data[1:, 1:])
-            ''' Rounding here removes the uniform random variable introduced in the uniformization. '''
-            np.savetxt(record_peaks, full_peak_data, delimiter=',')
+def chop_peaks(signal, filename, chop_size=4000):  # Sean was supposed to write a comment
+    peak_record = np.zeros([1, min(np.shape(signal))])
+    for index in range(int(max(np.shape(signal)) / chop_size)):
+        start = index * (chop_size + 1)
+        peak_data = detect_peaks(signal[start:(start + chop_size), :])
+        delta_time = np.diff(peak_data[:, 0])
+        full_peak_data = np.zeros([np.shape(peak_data)[0] - 1, np.shape(peak_data)[1] + 1])
+        full_peak_data[:, 0] = delta_time
+        full_peak_data[:, 1] = peak_data[1:, 0]
+        full_peak_data[:, 2:] = np.round(peak_data[1:, 1:])
+        ''' Rounding here removes the uniform random variable introduced in the uniformization. '''
+        peak_record = np.append(peak_record, full_peak_data, axis=0)
+    np.save(filename, peak_record[1:, :])
+
+
+def post_process_from_file(zipped_signal, burn_in, sample_rate, window_size=4000):
+    os.system("gunzip {} ;".format("'" + zipped_signal + "'"))
+    signal = np.load(zipped_signal[:-3])
+    os.system("gzip {} &".format("'" + zipped_signal[:-3] + "'"))
+    signal = burn_in_time_series(signal[:, :2], burn_in)  # this needs to be passed by reference.
+    signal = uniformly_sample(signal, sample_rate)
+
+    peakscsv = zipped_signal[:-13] + "peaks"
+    chop_peaks(signal, peakscsv, window_size)
 
