@@ -16,9 +16,9 @@ def run_pipeline(gillespie_parameters, processing_parameters, path):
 
     signal = Gill.gillespie(reaction_list, stop_time, initial_state)
     archive_signal(signal, path + '{}signal.npy'.format(gillespie_parameters),
-                   '/home/spcampbe/servers/storage/data\ storage')
-    post_process(signal, path + "{}peaks.npy".format(gillespie_parameters),
-                 burn_in_time, sample_rate, 3600)
+                   "/home/spcampbe/servers/storage/data\ storage")
+    Post.post_process(signal, path + "{}peaks.npy".format(gillespie_parameters),
+                 burn_in_time, sample_rate, 7200)
 
 
 def archive_signal(signal, file_name, storage):
@@ -27,16 +27,11 @@ def archive_signal(signal, file_name, storage):
               " mv {} {} &".format("'" + file_name + ".gz'", storage))
 
 
-def post_process(signal, file_name, burn_in_time, sample_rate, chop_size=4000):
-    signal = Post.burn_in_time_series(signal[:, :2], burn_in_time)
-    signal = Post.uniformly_sample(signal, sample_rate)
-    Post.chop_peaks(signal, file_name, chop_size)
-
-
 def get_peak_files(path):
-    onlyPeakfiles = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
-    onlyPeakfiles = [f for f in onlyPeakfiles if "peaks" in f]
-    return onlyPeakfiles
+    only_peaksfiles = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
+    only_peaksfiles = [f for f in only_peaksfiles if "peaks" in f]
+    return only_peaksfiles
+
 
 def Initialize_Reactions(delay_parameters):
     [mu, cv] = delay_parameters
@@ -54,11 +49,11 @@ def Initialize_Reactions(delay_parameters):
     dilution2 = Classy.Reaction(np.array([0, 0, -1], dtype=int), 2,
                                 'mobius_propensity', [0, beta, 1, 0], 1, [0])
     degradation0 = Classy.Reaction(np.array([-1, 0, 0], dtype=int), 0,
-                                   'mobius_sum_propensity', [0, gamma_r, r0, 1], 1, [0])
+                                   'mobius_propensity', [0, gamma_r, r0, 1], 1, [0])
     degradation1 = Classy.Reaction(np.array([0, -1, 0], dtype=int), 1,
-                                   'mobius_sum_propensity', [0, gamma_r, r0, 1], 1, [0])
+                                   'mobius_propensity', [0, gamma_r, r0, 1], 1, [0])
     degradation2 = Classy.Reaction(np.array([0, 0, -1], dtype=int), 2,
-                                   'mobius_sum_propensity', [0, gamma_r, r0, 1], 1, [0])
+                                   'mobius_propensity', [0, gamma_r, r0, 1], 1, [0])
     production1 = Classy.Reaction(np.array([0, 1, 0], dtype=int), 0,
                                   'decreasing_hill_propensity', [alpha, c0, 2], 0, [mu, mu * cv])
     production0 = Classy.Reaction(np.array([1, 0, 0], dtype=int), 2,
@@ -77,7 +72,7 @@ if __name__ == '__main__':
         mu_range = list(np.linspace(5, 10, 16))
         cv_range = list(np.linspace(0, .5, 16))
 
-        stopping_time = 8300
+        stopping_time = 6300
         burn_time = 300
         sampling_rate = 60
         path_to_raw_data = "2021Feb19/"
