@@ -5,8 +5,6 @@ import Functions_Gillespie as Gill
 import numpy as np
 import os
 import pandas as pd
-from os import listdir
-from os.path import isfile, join, getsize
 from pathlib import Path
 import multiprocessing as mp
 safeProcessors = max(1, int(mp.cpu_count() * .8))
@@ -35,8 +33,8 @@ def post_process(signal, file_name, burn_in_time, sample_rate, chop_size=4000):
     Post.chop_peaks(signal, file_name, chop_size)
 
 
-def get_peak_files():
-    onlyPeakfiles = [f for f in listdir(path_to_raw_data) if isfile(join(path_to_raw_data, f))]
+def get_peak_files(path):
+    onlyPeakfiles = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
     onlyPeakfiles = [f for f in onlyPeakfiles if "peaks" in f]
     return onlyPeakfiles
 
@@ -74,48 +72,49 @@ def Initialize_Reactions(delay_parameters):
     return [reaction_list, initial_vector]
 
 
-# Note: keep function definitions above mp.Pool
-with mp.Pool(safeProcessors) as pool2:
-    mu_range = list(np.linspace(5, 10, 16))
-    cv_range = list(np.linspace(0, .5, 16))
-    
-    stopping_time = 8300
-    burn_time = 300
-    sampling_rate = 60
-    path_to_raw_data = "2021Feb19/"
-    Path(path_to_raw_data).mkdir(parents=True, exist_ok=True)
+if __name__ == '__main__':
+    with mp.Pool(safeProcessors) as pool2:
+        mu_range = list(np.linspace(5, 10, 16))
+        cv_range = list(np.linspace(0, .5, 16))
 
-    parameter_sets = Gill.list_for_parallelization([mu_range, cv_range])
-    onlyPeakfiles = [f for f in get_peak_files() if getsize(join(path_to_raw_data, f)) > 1]
-    for peakfile in onlyPeakfiles:
-        for index in range(len(parameter_sets)):
-            if str(parameter_sets[index]) in peakfile:
-                del parameter_sets[index]
-                break
-    
-    try:
-        pool2.starmap(run_pipeline, [(parameter_set, [stopping_time, burn_time, sampling_rate], path_to_raw_data)
-                                     for parameter_set in parameter_sets])
-    finally:
-        pool2.close()
-        pool2.join()
+        stopping_time = 8300
+        burn_time = 300
+        sampling_rate = 60
+        path_to_raw_data = "2021Feb19/"
+        Path(path_to_raw_data).mkdir(parents=True, exist_ok=True)
 
-period_mean = np.zeros([len(mu_range), len(cv_range)])
-period_cv = np.zeros([len(mu_range), len(cv_range)])
-amplitude_mean = np.zeros([len(mu_range), len(cv_range)])
-amplitude_cv = np.zeros([len(mu_range), len(cv_range)])
+        parameter_sets = Gill.list_for_parallelization([mu_range, cv_range])
+        onlyPeakfiles = [f for f in get_peak_files(path_to_raw_data)
+                         if os.path.getsize(os.path.join(path_to_raw_data, f)) > 1]
+        for peakfile in onlyPeakfiles:
+            for index in range(len(parameter_sets)):
+                if str(parameter_sets[index]) in peakfile:
+                    del parameter_sets[index]
+                    break
 
-for peakfile in get_peak_files():
-    peaks = np.array(pd.read_csv(path_to_raw_data + peakfile, header=None))
-    params = np.array(peakfile[1:-10].split(', ')[-5:-3], dtype=float)  # need to fix these indecies
-    indices = (np.where(mu_range == params[0])[0][0], np.where(cv_range == params[1])[0][0])
+        try:
+            pool2.starmap(run_pipeline, [(parameter_set, [stopping_time, burn_time, sampling_rate], path_to_raw_data)
+                                         for parameter_set in parameter_sets])
+        finally:
+            pool2.close()
+            pool2.join()
 
-    period_mean[indices] = np.mean(peaks[:, 0])
-    period_cv[indices] = np.std(peaks[:, 0]) / period_mean[indices]
-    amplitude_mean[indices] = np.mean(peaks[:, 2])
-    amplitude_cv[indices] = np.std(peaks[:, 2]) / amplitude_mean[indices]
+    period_mean = np.zeros([len(mu_range), len(cv_range)])
+    period_cv = np.zeros([len(mu_range), len(cv_range)])
+    amplitude_mean = np.zeros([len(mu_range), len(cv_range)])
+    amplitude_cv = np.zeros([len(mu_range), len(cv_range)])
 
-np.savetxt(path_to_raw_data + "period_mean.csv", period_mean, delimiter=",")
-np.savetxt(path_to_raw_data + "period_cv.csv", period_cv, delimiter=",")
-np.savetxt(path_to_raw_data + "amplitude_mean.csv", amplitude_mean, delimiter=",")
-np.savetxt(path_to_raw_data + "amplitude_cv.csv", amplitude_cv, delimiter=",")
+    for peakfile in get_peak_files(path_to_raw_data):
+        peaks = np.array(pd.read_csv(path_to_raw_data + peakfile, header=None))
+        params = np.array(peakfile[1:-10].split(', ')[-5:-3], dtype=float)  # Still needs fixing
+        indices = (np.where(mu_range == params[0])[0][0], np.where(cv_range == params[1])[0][0])
+
+        period_mean[indices] = np.mean(peaks[:, 0])
+        period_cv[indices] = np.std(peaks[:, 0]) / period_mean[indices]
+        amplitude_mean[indices] = np.mean(peaks[:, 2])
+        amplitude_cv[indices] = np.std(peaks[:, 2]) / amplitude_mean[indices]
+
+    np.savetxt(path_to_raw_data + "period_mean.csv", period_mean, delimiter=",")
+    np.savetxt(path_to_raw_data + "period_cv.csv", period_cv, delimiter=",")
+    np.savetxt(path_to_raw_data + "amplitude_mean.csv", amplitude_mean, delimiter=",")
+    np.savetxt(path_to_raw_data + "amplitude_cv.csv", amplitude_cv, delimiter=",")
