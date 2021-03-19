@@ -71,7 +71,7 @@ def detect_peaks(signal):
 
 
 def chop_peaks(signal, filename, chop_size=4000):  # Sean was supposed to write a comment
-    peak_record = np.zeros([1, min(np.shape(signal))])
+    peak_record = np.zeros([1, min(np.shape(signal)) + 1])
     for index in range(int(max(np.shape(signal)) / chop_size)):
         start = index * (chop_size + 1)
         peak_data = detect_peaks(signal[start:(start + chop_size), :])
