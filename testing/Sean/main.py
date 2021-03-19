@@ -4,7 +4,6 @@ import PostProcessing_Functions as Post
 import Functions_Gillespie as Gill
 import numpy as np
 import os
-import pandas as pd
 from pathlib import Path
 import multiprocessing as mp
 safeProcessors = max(1, int(mp.cpu_count() * .8))
@@ -16,15 +15,16 @@ def run_pipeline(gillespie_parameters, processing_parameters, path):
     [stop_time, burn_in_time, sample_rate] = processing_parameters
 
     signal = Gill.gillespie(reaction_list, stop_time, initial_state)
-    archive_signal(signal, path + '{}signal.npy'.format(gillespie_parameters))
+    archive_signal(signal, path + '{}signal.npy'.format(gillespie_parameters),
+                   '/home/spcampbe/servers/storage/data\ storage')
     post_process(signal, path + "{}peaks.npy".format(gillespie_parameters),
                  burn_in_time, sample_rate, 3600)
 
 
-def archive_signal(signal, file_name):
+def archive_signal(signal, file_name, storage):
     np.save(file_name, signal)
     os.system("gzip {} ;".format("'" + file_name + "'") +
-              " mv {} /home/spcampbe/servers/storage/data\ storage &".format("'" + file_name + ".gz'"))
+              " mv {} {} &".format("'" + file_name + ".gz'", storage))
 
 
 def post_process(signal, file_name, burn_in_time, sample_rate, chop_size=4000):
@@ -105,8 +105,8 @@ if __name__ == '__main__':
     amplitude_cv = np.zeros([len(mu_range), len(cv_range)])
 
     for peakfile in get_peak_files(path_to_raw_data):
-        peaks = np.array(pd.read_csv(path_to_raw_data + peakfile, header=None))
-        params = np.array(peakfile[1:-10].split(', ')[-5:-3], dtype=float)  # Still needs fixing
+        peaks = np.load("'" + path_to_raw_data + peakfile + "'")
+        params = np.array(peakfile[1:-10].split(', '), dtype=float)
         indices = (np.where(mu_range == params[0])[0][0], np.where(cv_range == params[1])[0][0])
 
         period_mean[indices] = np.mean(peaks[:, 0])
